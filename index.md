@@ -1,7 +1,10 @@
 ## Welcome to Stebfs Github site
 
- I don't know really what I will be doing here, but I created this site anyway
+Willkommen auf meiner Github-Seite.
+
+Currently studying Embedded Systems Engineering.
+
+Einige Links:  
+[Documentation of my Bachelorproject](/Bachelorproject)
 
 [Meine Gedanken zum Robocup](/robocup.md)
-
-![501 Not yet implemented](https://http.cat/501.jpg)
