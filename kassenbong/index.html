@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Receipt</title>
+<style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 40px 16px;
+      background: #e9e9e9;
+      font-family: "Courier New", monospace;
+      color: #111;
+      word-break: break-word;
+    }
+
+    .receipt {
+      width: 100%;
+      max-width: 360px;
+      margin: 0 auto;
+      padding: 30px 24px;
+      background: #fff;
+    }
+
+    .center {
+      text-align: center;
+    }
+
+    .small {
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 13px;
+      margin: 8px 0;
+    }
+
+    #items-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    #items-table th,
+    #items-table td {
+      padding: 6px 0;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    #items-table th:not(:first-child),
+    #items-table td:not(:first-child) {
+      text-align: right;
+      padding-left: 8px;
+    }
+
+    .total {
+      font-size: 18px;
+      font-weight: bold;
+      margin-top: 12px;
+    }
+
+    @media print {
+      body {
+        background: white;
+        padding: 0;
+      }
+
+      .receipt {
+        box-shadow: none;
+      }
+    }
+    </style>
+</head>
+<body>
+    <main class="receipt">
+
+        <section class="small">
+            <div id="time">Zeit: </div>
+            <div id="receipt-number"></div>
+            <div id="terminal"></div>
+        </section>
+
+        <section class="center">
+            <table id="items-table">
+                <thead>
+                    <tr>
+                        <th>Artikel</th>
+                        <th>Anzahl</th>
+                        <th>Einzelpreis</th>
+                        <th>Summe</th>
+                    </tr>
+                </thead>
+                <tbody id="items"></tbody>
+            </table>
+        </section>
+        <section class="center">
+            <div class="row total">
+                <span>SUMME</span>
+                <span id="total-amount"></span>
+            </div>
+            <div class="row">
+                <span>Zahlungsart</span>
+                <span id="payment-method"></span>
+            </div>
+        </section>
+    </main>
+    <script>
+        // Query-Parameter aus der URL lesen
+        const params = new URLSearchParams(
+            window.location.search
+        );
+        async function decodeInput(input) {
+            // Replace non-url compatible chars with base64 standard chars
+            input = input
+                .replace(/-/g, '+')
+                .replace(/_/g, '/');
+
+            // Pad out with standard base64 required padding characters
+            var pad = input.length % 4;
+            if(pad) {
+            if(pad === 1) {
+                throw new Error('InvalidLengthError: Input base64url string is the wrong length to determine padding');
+            }
+            input += new Array(5-pad).join('=');
+            }
+            const binary = atob(input);
+            const bytes = Uint8Array.from(
+                binary,
+                c => c.charCodeAt(0)
+            );
+
+            const stream = new Blob([bytes])
+                .stream()
+                .pipeThrough(new DecompressionStream("gzip"));
+
+            const response = await new Response(stream).text();
+            var data = JSON.parse(response);
+            const items = document.getElementById('items');
+            items.replaceChildren();
+            data.items.forEach(item => {
+                const row = document.createElement('tr');
+                const totalCents = item.unit_price_cents * item.quantity;
+
+                [item.name, item.quantity, `${(item.unit_price_cents / 100).toFixed(2)} €`,
+                    `${(totalCents / 100).toFixed(2)} €`].forEach(value => {
+                    const cell = document.createElement('td');
+                    cell.textContent = value;
+                    row.appendChild(cell);
+                });
+
+                items.appendChild(row);
+            });
+            document.getElementById('time').textContent = `Zeit: ${new Date(data.completed_at).toLocaleString('de-DE')}`;
+            document.getElementById('receipt-number').textContent = `Belegnummer: \n${data.id}`;
+            document.getElementById('terminal').textContent = `Terminal: ${data.terminal_id}`
+            document.getElementById('total-amount').textContent = `${(data.total_cents / 100).toFixed(2)} €`;
+            document.getElementById('payment-method').textContent = `${data.payment === "card" ? "Karte" : "Bar"}`;
+        };
+        if (params.has('data')) {
+            decodeInput(params.get('data'));
+        }
+        </script>
+</body>
+</html>
